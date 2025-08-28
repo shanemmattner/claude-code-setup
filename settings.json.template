@@ -1,0 +1,27 @@
+{
+  "model": "claude-sonnet-4-20250514",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"## Session: $(date) - Branch: $(git branch --show-current 2>/dev/null || echo 'unknown') - Dir: $(basename $(pwd))\" >> memory-bank/development-log.md"
+          }
+        ]
+      }
+    ],
+    "PreCommand": [
+      {
+        "matcher": "implement-tdd|plan-work|create-prd",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [[ ! -d 'memory-bank' ]]; then echo '⚠️  No memory-bank found. Run: python setup.py to initialize'; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

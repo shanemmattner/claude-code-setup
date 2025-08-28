@@ -40,6 +40,7 @@ class ClaudeSetupWizard:
         self._generate_claude_md()
         self._copy_agents()
         self._copy_commands()
+        self._create_settings_json()
         self._create_memory_bank()
         self._create_mcp_config()
         
@@ -386,9 +387,16 @@ memory-bank/
         agents_dest = self.project_root / ".claude" / "agents"
         
         if agents_source.exists():
-            for agent_file in agents_source.glob("*.py"):
+            # Copy Markdown agent files (not Python files)
+            md_files = list(agents_source.glob("*.md"))
+            for agent_file in md_files:
                 shutil.copy2(agent_file, agents_dest)
-            print(f"🤖 Copied {len(list(agents_source.glob('*.py')))} agents")
+            print(f"🤖 Copied {len(md_files)} agents")
+            
+            # Remove any old Python files if they exist
+            for py_file in agents_dest.glob("*.py"):
+                py_file.unlink()
+                print(f"🗑️  Removed old Python agent: {py_file.name}")
         else:
             print("⚠️ Agents directory not found, will be created later")
     
@@ -398,11 +406,50 @@ memory-bank/
         commands_dest = self.project_root / ".claude" / "commands"
         
         if commands_source.exists():
-            for cmd_file in commands_source.glob("*.py"):
+            # Copy Markdown command files (not Python files)
+            md_files = list(commands_source.glob("*.md"))
+            for cmd_file in md_files:
                 shutil.copy2(cmd_file, commands_dest)
-            print(f"⚙️ Copied {len(list(commands_source.glob('*.py')))} commands")
+            print(f"⚙️ Copied {len(md_files)} commands")
+            
+            # Remove any old Python files if they exist
+            for py_file in commands_dest.glob("*.py"):
+                py_file.unlink()
+                print(f"🗑️  Removed old Python command: {py_file.name}")
         else:
             print("⚠️ Commands directory not found, will be created later")
+    
+    def _create_settings_json(self):
+        """Create settings.json configuration file."""
+        template_path = self.setup_root / "settings.json.template"
+        settings_dest = self.project_root / ".claude" / "settings.json"
+        
+        if template_path.exists():
+            # Copy template and customize if needed
+            shutil.copy2(template_path, settings_dest)
+            print(f"⚙️ Created settings.json configuration")
+        else:
+            # Create basic settings.json
+            settings_config = {
+                "model": self.config.get('default_model', 'claude-sonnet-4-20250514'),
+                "hooks": {
+                    "SessionStart": [
+                        {
+                            "matcher": ".*",
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "echo \"## Session: $(date) - Branch: $(git branch --show-current 2>/dev/null || echo 'unknown') - Dir: $(basename $(pwd))\" >> memory-bank/development-log.md"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+            
+            with open(settings_dest, 'w') as f:
+                json.dump(settings_config, f, indent=2)
+            print(f"⚙️ Created settings.json configuration")
     
     def _create_memory_bank(self):
         """Create memory-bank directory structure."""
